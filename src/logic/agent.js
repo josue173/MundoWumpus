@@ -178,38 +178,42 @@ function reconstructPath(cameFrom, current, key) {
 }
 
 // Decide next action for the agent
-// Returns { type, dir, path } — path incluye la ruta completa planificada por A*
 export function decideAction(gameState, kb) {
   const { agentPos, hasTreasure, entryPos, wumpusAlive, wumpusPos, arrows, board, size } = gameState;
 
   const perceptions = getPerceptions(gameState);
   updateKB(kb, agentPos, perceptions);
 
-  // If has treasure, go home
-  const goal = hasTreasure ? entryPos : findBestGoal(gameState, kb);
-
-  if (!goal) {
-    const dir = exploreFallback(agentPos, kb, board, size, wumpusAlive);
-    return { type: 'MOVE', dir, path: null };
-  }
-
   // Always shoot when the wumpus is in line of sight, but the arrow may miss (50% hit chance).
   if (!hasTreasure && wumpusAlive && arrows > 0) {
     const shootDir = canShoot(agentPos, wumpusPos, size);
     if (shootDir && kb.possibleWumpus.size <= 2) {
-      return { type: 'SHOOT', dir: shootDir, path: null };
+      return { type: 'SHOOT', dir: shootDir };
     }
   }
 
-  const path = astar(agentPos, goal, kb, board, wumpusAlive, hasTreasure);
-  if (!path || path.length < 2) {
+  const goal = hasTreasure ? entryPos : findBestGoal(gameState, kb);
+
+  if (!goal) {
     const dir = exploreFallback(agentPos, kb, board, size, wumpusAlive);
-    return { type: 'MOVE', dir, path: null };
+    return { type: 'MOVE', dir };
   }
 
-  const next = path[1];
-  const dir = getDir(agentPos, next);
-  return { type: 'MOVE', dir, path }; // path[0]=actual, path[1..n]=ruta planificada
+  // Greedy best-first: pick the immediate neighbor with minimum f(n) = g(n) + h(n).
+  // Uses the exact same formula as the A* panel so the display always matches the move.
+  const neighbors = adjacents(agentPos, size);
+  const best = neighbors.reduce((a, b) => {
+    const fa = 1 + riskScore(kb, a) + heuristic(a, goal);
+    const fb = 1 + riskScore(kb, b) + heuristic(b, goal);
+    return fa <= fb ? a : b;
+  }, neighbors[0]);
+
+  if (!best) {
+    const dir = exploreFallback(agentPos, kb, board, size, wumpusAlive);
+    return { type: 'MOVE', dir };
+  }
+
+  return { type: 'MOVE', dir: getDir(agentPos, best) };
 }
 
 function findBestGoal(gameState, kb) {

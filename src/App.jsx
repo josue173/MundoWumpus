@@ -56,12 +56,7 @@ export default function App() {
     setKb({ ...knowledge });
 
     if (action.type === 'MOVE') {
-      const offsets = { N: [-1,0], S: [1,0], E: [0,1], W: [0,-1] };
-      const actualNextPos = [
-        state.agentPos[0] + offsets[action.dir][0],
-        state.agentPos[1] + offsets[action.dir][1],
-      ];
-      const snapshot = computeHeuristicTable(state, knowledge, actualNextPos);
+      const snapshot = computeHeuristicTable(state, knowledge);
       setHeuristicHistory(prev => [...prev, { ...snapshot, stepIndex: prev.length, actionType: 'MOVE' }]);
     } else if (action.type === 'SHOOT') {
       const dirNames = { N: 'Norte', S: 'Sur', E: 'Este', W: 'Oeste' };
