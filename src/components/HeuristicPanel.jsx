@@ -11,13 +11,14 @@ const DIR_FROM = ([r1, c1], [r2, c2]) => {
 };
 
 const STATUS_LABEL = {
-  safe:             { label: 'Segura',           color: '#48cae4', bg: '#012a50' },
-  unknown:          { label: 'Desconocida',       color: '#90e0ef', bg: '#023e8a' },
-  'possible-pit':   { label: 'Posible Pozo',      color: '#f77f00', bg: '#3a2000' },
-  'possible-wumpus':{ label: 'Posible Wumpus',    color: '#ff6b6b', bg: '#4a0000' },
-  unsafe:           { label: 'Peligrosa',         color: '#caf0f8', bg: '#6a0000' },
-  pit:              { label: '🕳️ Pozo',           color: '#caf0f8', bg: '#6a0000' },
-  wumpus:           { label: '👹 Wumpus',         color: '#caf0f8', bg: '#6a0000' },
+  safe:             { label: 'Segura',         color: '#48cae4', bg: '#012a50' },
+  'safe-visited':   { label: 'Segura',         color: '#48cae4', bg: '#012a50' },
+  unknown:          { label: 'Desconocida',    color: '#90e0ef', bg: '#023e8a' },
+  'possible-pit':   { label: 'Posible Pozo',   color: '#f77f00', bg: '#3a2000' },
+  'possible-wumpus':{ label: 'Posible Wumpus', color: '#ff6b6b', bg: '#4a0000' },
+  unsafe:           { label: 'Peligrosa',      color: '#caf0f8', bg: '#6a0000' },
+  pit:              { label: '🕳️ Pozo',        color: '#caf0f8', bg: '#6a0000' },
+  wumpus:           { label: '👹 Wumpus',      color: '#caf0f8', bg: '#6a0000' },
 };
 
 const RISK_LABELS = {
@@ -28,6 +29,31 @@ const RISK_LABELS = {
   200:  'Posible Wumpus + Pozo (+200)',
   1000: 'Confirmada peligrosa (+1000)',
 };
+
+function PitFallStep({ snapshot, stepNumber, isLatest }) {
+  return (
+    <div className={`hp-step-block hp-step-pitfall ${isLatest ? 'hp-step-latest' : ''}`}>
+      <div className="hp-step-header">
+        <span className="hp-step-num">Paso {stepNumber}</span>
+        <span className="hp-step-info">
+          Casilla: <strong>({snapshot.pitPos[0]},{snapshot.pitPos[1]})</strong>
+        </span>
+        {isLatest && <span className="hp-step-latest-tag">● Actual</span>}
+      </div>
+      <div className="hp-shoot-body">
+        <span className="hp-shoot-icon">🕳️</span>
+        <span>¡El agente cayó en un <strong>pozo</strong> en ({snapshot.pitPos[0]},{snapshot.pitPos[1]})!</span>
+      </div>
+      <div className="hp-pitfall-result">
+        <span>❤️ Vidas restantes: <strong>{snapshot.livesLeft}</strong></span>
+        <span>📌 Casilla marcada como <strong>Peligrosa</strong> en la KB</span>
+      </div>
+      <div className="hp-shoot-note">
+        No se evalúa A* — el agente regresa a la entrada.
+      </div>
+    </div>
+  );
+}
 
 function ShootStep({ snapshot, stepNumber, isLatest }) {
   return (
@@ -54,7 +80,7 @@ function StepTable({ snapshot, stepNumber, isLatest }) {
   const { neighbors, goal, agentPos, best } = snapshot;
 
   return (
-    <div className={`hp-step-block ${isLatest ? 'hp-step-latest' : ''}`}>
+    <div className={`hp-step-block ${isLatest ? 'hp-step-latest' : ''} ${snapshot.pitFall ? 'hp-step-has-pitfall' : ''}`}>
       <div className="hp-step-header">
         <span className="hp-step-num">Paso {stepNumber}</span>
         <span className="hp-step-info">
@@ -79,6 +105,7 @@ function StepTable({ snapshot, stepNumber, isLatest }) {
               <th>Dir.</th>
               <th>Casilla</th>
               <th>Conocimiento</th>
+              <th>Estado</th>
               <th className="hp-col-g" title="Costo acumulado + riesgo">g(n)</th>
               <th className="hp-col-h" title="Distancia Manhattan al objetivo">h(n)</th>
               <th className="hp-col-f" title="Costo total estimado">f(n)</th>
@@ -89,6 +116,8 @@ function StepTable({ snapshot, stepNumber, isLatest }) {
               const dir = DIR_FROM(agentPos, n.pos);
               const st = STATUS_LABEL[n.status] || STATUS_LABEL.unknown;
               const isBest = best && n.key === best.key;
+              const isVisited = n.visited;
+              const isSafe = n.status === 'safe' || n.status === 'safe-visited';
               return (
                 <tr key={n.key} className={isBest ? 'hp-row-best' : ''}>
                   <td className="hp-dir">{DIR_LABEL[dir]}</td>
@@ -97,6 +126,12 @@ function StepTable({ snapshot, stepNumber, isLatest }) {
                     <span className="hp-status-badge" style={{ color: st.color, background: st.bg }}>
                       {st.label}
                     </span>
+                  </td>
+                  <td>
+                    {isVisited
+                      ? <span className="hp-estado-visitada">Visitada</span>
+                      : <span className="hp-estado-nosegura">No visitada</span>
+                    }
                   </td>
                   <td className="hp-col-g hp-num" title={`1 paso + ${RISK_LABELS[n.risk] || n.risk}`}>
                     {n.gCost}
@@ -115,10 +150,20 @@ function StepTable({ snapshot, stepNumber, isLatest }) {
 
       {best && (
         <div className="hp-conclusion-inline">
-          ✅ Elige <strong>({best.pos[0]},{best.pos[1]})</strong> — {DIR_LABEL[DIR_FROM(agentPos, best.pos)]} —
-          {' '}<span className="hp-f">f={best.fCost}</span>{' '}
-          (<span className="hp-g">g={best.gCost}</span> + <span className="hp-h">h={best.hCost}</span>)
-          {' '}· <span className="hp-risk-tag">{RISK_LABELS[best.risk] || `+${best.risk}`}</span>
+          ✅ Elige <strong>{DIR_LABEL[DIR_FROM(agentPos, best.pos)]}</strong>{' '}
+          <strong>({best.pos[0]},{best.pos[1]})</strong>
+        </div>
+      )}
+
+      {snapshot.pitFall && (
+        <div className="hp-pitfall-inline">
+          <div className="hp-pitfall-header">
+            🕳️ <strong>El agente cayó en un pozo en ({snapshot.pitFall.pitPos[0]},{snapshot.pitFall.pitPos[1]})</strong>
+          </div>
+          <div className="hp-pitfall-result">
+            <span>❤️ Vidas restantes: <strong>{snapshot.pitFall.livesLeft}</strong></span>
+            <span>📌 Casilla marcada como <strong>Peligrosa</strong> en la KB (Conocimiento)</span>
+          </div>
         </div>
       )}
     </div>
@@ -148,11 +193,12 @@ export default function HeuristicPanel({ gameState, kb, history = [] }) {
         </div>
       )}
 
-      {history.map((snapshot, i) => (
-        snapshot.actionType === 'SHOOT'
-          ? <ShootStep key={i} snapshot={snapshot} stepNumber={i + 1} isLatest={i === history.length - 1} />
-          : <StepTable key={i} snapshot={snapshot} stepNumber={i + 1} isLatest={i === history.length - 1} />
-      ))}
+      {history.map((snapshot, i) => {
+        const isLatest = i === history.length - 1;
+        if (snapshot.actionType === 'SHOOT')
+          return <ShootStep key={i} snapshot={snapshot} stepNumber={i + 1} isLatest={isLatest} />;
+        return <StepTable key={i} snapshot={snapshot} stepNumber={i + 1} isLatest={isLatest} />;
+      })}
 
       <div ref={bottomRef} />
 

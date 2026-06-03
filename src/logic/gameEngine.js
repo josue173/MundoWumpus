@@ -105,6 +105,7 @@ export function applyAction(state, action) {
 
       if (s.wumpusAlive && cell.type === CELL.WUMPUS) {
         s.lives--;
+        s.diedAt = [...next]; // marcar celda como visitada aunque sea peligrosa
         log.conclusion = '¡Encontré al Wumpus! Perdí una vida.';
         if (s.lives <= 0) {
           s.status = 'lost';
@@ -122,13 +123,14 @@ export function applyAction(state, action) {
         }
       } else if (cell.type === CELL.PIT) {
         s.lives--;
+        s.fallenInPit = next; // marcar para que la KB lo registre como unsafe
         log.conclusion = '¡Caí en un pozo! Perdí una vida.';
         if (s.lives <= 0) {
           s.status = 'lost';
           log.decision = 'Sin vidas restantes. Juego terminado.';
         } else {
           s.agentPos = s.entryPos;
-          log.decision = 'Regresé a la entrada.';
+          log.decision = 'Regresé a la entrada. Marqué el pozo como peligroso.';
         }
       } else if (!s.hasTreasure && cell.type === CELL.TREASURE) {
         s.hasTreasure = true;

@@ -17,6 +17,9 @@ export function updateKB(kb, pos, perceptions) {
   const key = pos.join(',');
   kb.visited.add(key);
   kb.safe.add(key);
+  // La celda actual fue visitada y sobrevivida → nunca puede ser pozo ni Wumpus
+  kb.possiblePit.delete(key);
+  kb.possibleWumpus.delete(key);
 
   const adjs = adjacents(pos, kb.size);
 
@@ -83,12 +86,13 @@ export function computeHeuristicTable(gameState, kb, actualNextPos = null) {
     const key = pos.join(',');
 
     // Status basado SOLO en lo que el agente conoce (KB), no en el tablero real
+    // Las celdas visitadas/seguras tienen prioridad sobre sospechas anteriores
     let status = 'unknown';
-    if (kb.safe.has(key)) status = 'safe';
     if (kb.possiblePit.has(key)) status = 'possible-pit';
     if (kb.possibleWumpus.has(key)) status = 'possible-wumpus';
     if (kb.unsafe.has(key)) status = 'unsafe';
-    // Solo revelar wumpus si el agente lo ha visto directamente (casilla visitada adyacente con hedor confirmado)
+    if (kb.safe.has(key)) status = kb.visited.has(key) ? 'safe-visited' : 'safe'; // safe siempre gana
+    // Solo revelar wumpus/pit si fue visitada directamente
     if (wumpusAlive && cell.type === 'WUMPUS' && kb.visited.has(key)) status = 'wumpus';
     if (cell.type === 'PIT' && kb.visited.has(key)) status = 'pit';
 
@@ -114,6 +118,51 @@ export function computeHeuristicTable(gameState, kb, actualNextPos = null) {
   }
 
   return { neighbors, goal, agentPos, best };
+}
+
+// A* que solo usa celdas confirmadas seguras — Fase 1
+function astarSafeOnly(start, goal, kb, board, wumpusAlive) {
+  const key = p => p.join(',');
+  const goalKey = key(goal);
+  const g = { [key(start)]: 0 };
+  const f = { [key(start)]: heuristic(start, goal) };
+  const open = [start];
+  const cameFrom = {};
+  const closed = new Set();
+
+  while (open.length) {
+    open.sort((a, b) => {
+      const df = (f[key(a)] || Infinity) - (f[key(b)] || Infinity);
+      if (df !== 0) return df;
+      return heuristic(a, goal) - heuristic(b, goal);
+    });
+    const current = open.shift();
+    const ck = key(current);
+
+    if (ck === goalKey) return reconstructPath(cameFrom, current, key);
+
+    closed.add(ck);
+
+    for (const neighbor of adjacents(current, kb.size)) {
+      const nk = key(neighbor);
+      if (closed.has(nk)) continue;
+
+      // El agente solo evita celdas que su KB confirma como peligrosas
+      if (kb.unsafe.has(nk)) continue;
+
+      // Solo permitir celdas confirmadas seguras (o el goal mismo)
+      if (!kb.safe.has(nk) && nk !== goalKey) continue;
+
+      const tentativeG = (g[ck] || 0) + 1;
+      if (tentativeG < (g[nk] || Infinity)) {
+        cameFrom[nk] = current;
+        g[nk] = tentativeG;
+        f[nk] = tentativeG + heuristic(neighbor, goal);
+        if (!open.some(p => key(p) === nk)) open.push(neighbor);
+      }
+    }
+  }
+  return null; // no hay ruta segura
 }
 
 // A* search from start to goal
@@ -146,9 +195,10 @@ export function astar(start, goal, kb, board, wumpusAlive, returningHome = false
       const nk = key(neighbor);
       if (closed.has(nk)) continue;
 
-      const cell = board[neighbor[0]][neighbor[1]];
-      if (cell.type === CELL.PIT) continue;
-      if (wumpusAlive && cell.type === CELL.WUMPUS) continue;
+      // El agente solo evita celdas que su KB confirma como peligrosas
+      if (kb.unsafe.has(nk)) continue;
+      // Evitar el Wumpus solo si el agente sabe dónde está (está en possibleWumpus con certeza)
+      if (wumpusAlive && kb.possibleWumpus.has(nk) && kb.possibleWumpus.size === 1) continue;
 
       let risk = riskScore(kb, neighbor);
       // Al regresar con tesoro, penalizar fuertemente casillas no visitadas
@@ -201,7 +251,11 @@ export function decideAction(gameState, kb) {
     }
   }
 
-  const path = astar(agentPos, goal, kb, board, wumpusAlive, hasTreasure);
+  // Fase 1: intentar ruta usando SOLO celdas seguras
+  const safePath = astarSafeOnly(agentPos, goal, kb, board, wumpusAlive);
+  // Fase 2: si no existe ruta segura, usar A* con penalizaciones de riesgo
+  const path = safePath || astar(agentPos, goal, kb, board, wumpusAlive, hasTreasure);
+
   if (!path || path.length < 2) {
     const dir = exploreFallback(agentPos, kb, board, size, wumpusAlive);
     return { type: 'MOVE', dir, path: null };
@@ -219,6 +273,7 @@ function findBestGoal(gameState, kb) {
   // Prioridad 1: celda segura no visitada adyacente (distancia 1)
   // El agente siempre explora primero antes de arriesgarse
   let adjacentSafe = null;
+  let adjacentSafeH = Infinity;
   let nearestSafe = null;
   let nearestDist = Infinity;
 
@@ -227,13 +282,18 @@ function findBestGoal(gameState, kb) {
       const key = [r, c].join(',');
       if (!kb.visited.has(key) && kb.safe.has(key)) {
         const d = heuristic(agentPos, [r, c]);
-        if (d === 1) adjacentSafe = [r, c]; // celda segura adyacente → máxima prioridad
+        const hToTreasure = heuristic([r, c], treasurePos);
+        // Entre celdas adyacentes, preferir la más cercana al objetivo
+        if (d === 1 && hToTreasure < adjacentSafeH) {
+          adjacentSafe = [r, c];
+          adjacentSafeH = hToTreasure;
+        }
         if (d < nearestDist) { nearestDist = d; nearestSafe = [r, c]; }
       }
     }
   }
 
-  // Si hay una celda segura adyacente sin visitar, ir ahí primero
+  // Si hay una celda segura adyacente sin visitar, ir a la más cercana al objetivo
   if (adjacentSafe) return adjacentSafe;
 
   // Prioridad 2: si el tesoro está confirmado seguro, ir por él

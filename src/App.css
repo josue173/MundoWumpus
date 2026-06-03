@@ -40,7 +40,7 @@ body {
 
 .app-body {
   display: grid;
-  grid-template-columns: 280px 1fr 420px;
+  grid-template-columns: 280px 1fr 560px;
   flex: 1;
   gap: 0;
   overflow: hidden;
@@ -619,9 +619,44 @@ body {
   font-style: italic;
 }
 
+.hp-estado-visitada {
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: #48cae4;
+}
+.hp-estado-nosegura {
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: #b8a98a;
+}
+
 /* ===== SHOOT STEP ===== */
 .hp-step-shoot {
   border-color: var(--warn) !important;
+}
+.hp-step-has-pitfall {
+  border-color: var(--danger) !important;
+}
+.hp-pitfall-inline {
+  background: #2a0000;
+  border: 1px solid var(--danger);
+  border-radius: 6px;
+  padding: 8px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.hp-pitfall-header {
+  font-size: 0.78rem;
+  color: #ff8080;
+}
+.hp-pitfall-result {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  font-size: 0.74rem;
+  color: var(--text);
+  padding: 4px 0;
 }
 .hp-shoot-body {
   display: flex;

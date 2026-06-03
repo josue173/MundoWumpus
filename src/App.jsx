@@ -51,18 +51,47 @@ export default function App() {
     }
 
     const action = decideAction(state, knowledge);
-    const newState = applyAction(state, action);
-    setGameState(newState);
-    setKb({ ...knowledge });
 
+    // 1. Calcular snapshot A* antes de aplicar consecuencias
+    let moveSnapshot = null;
     if (action.type === 'MOVE') {
       const offsets = { N: [-1,0], S: [1,0], E: [0,1], W: [0,-1] };
       const actualNextPos = [
         state.agentPos[0] + offsets[action.dir][0],
         state.agentPos[1] + offsets[action.dir][1],
       ];
-      const snapshot = computeHeuristicTable(state, knowledge, actualNextPos);
-      setHeuristicHistory(prev => [...prev, { ...snapshot, stepIndex: prev.length, actionType: 'MOVE' }]);
+      moveSnapshot = computeHeuristicTable(state, knowledge, actualNextPos);
+    }
+
+    // 2. Aplicar la acción
+    const newState = applyAction(state, action);
+
+    // 3. Procesar consecuencias y embeber en el snapshot del MOVE
+    let pitFallInfo = null;
+
+    if (newState.diedAt) {
+      knowledge.visited.add(newState.diedAt.join(','));
+      newState.diedAt = null;
+    }
+
+    if (newState.fallenInPit) {
+      const pitPos = newState.fallenInPit;
+      knowledge.unsafe.add(pitPos.join(','));
+      knowledge.visited.add(pitPos.join(','));
+      knowledge.possiblePit.delete(pitPos.join(','));
+      knowledge.safe.delete(pitPos.join(','));
+      newState.fallenInPit = null;
+      pitFallInfo = { pitPos, livesLeft: newState.lives };
+    }
+
+    // 4. Registrar en historial — el PIT_FALL va embebido en el mismo paso del MOVE
+    if (action.type === 'MOVE' && moveSnapshot) {
+      setHeuristicHistory(prev => [...prev, {
+        ...moveSnapshot,
+        stepIndex: prev.length,
+        actionType: 'MOVE',
+        pitFall: pitFallInfo,   // null si no hubo caída
+      }]);
     } else if (action.type === 'SHOOT') {
       const dirNames = { N: 'Norte', S: 'Sur', E: 'Este', W: 'Oeste' };
       setHeuristicHistory(prev => [...prev, {
@@ -73,6 +102,9 @@ export default function App() {
         stepIndex: prev.length,
       }]);
     }
+
+    setGameState(newState);
+    setKb({ ...knowledge });
 
     if (newState.status !== 'playing') {
       setRunning(false);
