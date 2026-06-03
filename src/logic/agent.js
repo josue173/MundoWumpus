@@ -174,9 +174,8 @@ export function decideAction(gameState, kb) {
     return { type: 'MOVE', dir: exploreFallback(agentPos, kb, board, size, wumpusAlive) };
   }
 
-  // Consider shooting if wumpus is in line of sight and we have arrows.
-  // The agent only decides to shoot ~50% of the time to add unpredictability.
-  if (!hasTreasure && wumpusAlive && arrows > 0 && Math.random() < 0.5) {
+  // Always shoot when the wumpus is in line of sight, but the arrow may miss (50% hit chance).
+  if (!hasTreasure && wumpusAlive && arrows > 0) {
     const shootDir = canShoot(agentPos, wumpusPos, size);
     if (shootDir && kb.possibleWumpus.size <= 2) {
       return { type: 'SHOOT', dir: shootDir };
