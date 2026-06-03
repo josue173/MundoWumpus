@@ -185,7 +185,7 @@ export function decideAction(gameState, kb) {
     return { type: 'MOVE', dir, path: null };
   }
 
-  // Consider shooting if wumpus is in line of sight and we have arrows
+  // Always shoot when the wumpus is in line of sight, but the arrow may miss (50% hit chance).
   if (!hasTreasure && wumpusAlive && arrows > 0) {
     const shootDir = canShoot(agentPos, wumpusPos, size);
     if (shootDir && kb.possibleWumpus.size <= 2) {
