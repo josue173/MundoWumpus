@@ -20,7 +20,11 @@ export default function Board({ gameState, kb, designMode, onCellClick, selected
     <div className="board-wrapper">
       <div
         className="board"
-        style={{ gridTemplateColumns: `repeat(${size}, 1fr)` }}
+        style={{
+          gridTemplateColumns: `repeat(${size}, 1fr)`,
+          gridTemplateRows: `repeat(${size}, 1fr)`,
+          '--board-size': size,
+        }}
       >
         {board.map((row, r) =>
           row.map((cell, c) => {

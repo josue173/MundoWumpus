@@ -118,9 +118,9 @@ export default function ConfigPanel({ onStart, onResume, running, gameStarted, o
 
       <label>
         Velocidad de simulación:
-        <input type="range" min="100" max="2000" step="100" value={speed}
-          onChange={e => onSpeedChange(+e.target.value)} />
-        <span>{speed}ms por paso</span>
+        <input type="range" min="1" max="5" step="1" value={Math.round(speed / 1000)}
+          onChange={e => onSpeedChange(+e.target.value * 1000)} />
+        <span>{Math.round(speed / 1000)}s por paso</span>
       </label>
 
       {error && <p className="error-msg">{error}</p>}

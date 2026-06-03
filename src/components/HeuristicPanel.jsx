@@ -11,13 +11,13 @@ const DIR_FROM = ([r1, c1], [r2, c2]) => {
 };
 
 const STATUS_LABEL = {
-  safe:             { label: 'Segura',           color: '#00c47a', bg: '#0d2b1e' },
-  unknown:          { label: 'Desconocida',       color: '#9090b0', bg: '#1e2130' },
-  'possible-pit':   { label: 'Posible Pozo',      color: '#ffaa00', bg: '#1a1500' },
-  'possible-wumpus':{ label: 'Posible Wumpus',    color: '#ff6b6b', bg: '#2b0d0d' },
-  unsafe:           { label: 'Peligrosa',         color: '#ff4d4d', bg: '#2b0000' },
-  pit:              { label: '🕳️ Pozo',           color: '#ff4d4d', bg: '#2b0000' },
-  wumpus:           { label: '👹 Wumpus',         color: '#ff4d4d', bg: '#2b0000' },
+  safe:             { label: 'Segura',           color: '#48cae4', bg: '#012a50' },
+  unknown:          { label: 'Desconocida',       color: '#90e0ef', bg: '#023e8a' },
+  'possible-pit':   { label: 'Posible Pozo',      color: '#f77f00', bg: '#3a2000' },
+  'possible-wumpus':{ label: 'Posible Wumpus',    color: '#ff6b6b', bg: '#4a0000' },
+  unsafe:           { label: 'Peligrosa',         color: '#caf0f8', bg: '#6a0000' },
+  pit:              { label: '🕳️ Pozo',           color: '#caf0f8', bg: '#6a0000' },
+  wumpus:           { label: '👹 Wumpus',         color: '#caf0f8', bg: '#6a0000' },
 };
 
 const RISK_LABELS = {

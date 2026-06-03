@@ -12,7 +12,7 @@ export default function App() {
   const [gameState, setGameState] = useState(null);
   const [kb, setKb] = useState(null);
   const [running, setRunning] = useState(false);
-  const [speed, setSpeed] = useState(700);
+  const [speed, setSpeed] = useState(1000);
   const [activeTab, setActiveTab] = useState('reasoning'); // 'reasoning' | 'heuristic'
   const [heuristicHistory, setHeuristicHistory] = useState([]);
   const intervalRef = useRef(null);
@@ -76,7 +76,6 @@ export default function App() {
     <div className="app">
       <header className="app-header">
         <h1>🌍 Mundo de Wumpus</h1>
-        <p>Agente inteligente con búsqueda heurística A* y base de conocimiento</p>
       </header>
 
       <div className="app-body">

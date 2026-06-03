@@ -80,18 +80,23 @@ export function computeHeuristicTable(gameState, kb) {
   const neighbors = adjacents(agentPos, size).map(pos => {
     const cell = board[pos[0]][pos[1]];
     const key = pos.join(',');
-    const risk = riskScore(kb, pos);
-    const gCost = 1 + risk;
-    const hCost = heuristic(pos, goal);
-    const fCost = gCost + hCost;
 
+    // Status basado SOLO en lo que el agente conoce (KB), no en el tablero real
     let status = 'unknown';
     if (kb.safe.has(key)) status = 'safe';
     if (kb.possiblePit.has(key)) status = 'possible-pit';
     if (kb.possibleWumpus.has(key)) status = 'possible-wumpus';
     if (kb.unsafe.has(key)) status = 'unsafe';
-    if (cell.type === 'PIT') status = 'pit';
-    if (wumpusAlive && cell.type === 'WUMPUS') status = 'wumpus';
+    // Solo revelar wumpus si el agente lo ha visto directamente (casilla visitada adyacente con hedor confirmado)
+    if (wumpusAlive && cell.type === 'WUMPUS' && kb.visited.has(key)) status = 'wumpus';
+    if (cell.type === 'PIT' && kb.visited.has(key)) status = 'pit';
+
+    // El riesgo se basa únicamente en la KB del agente
+    let risk = riskScore(kb, pos);
+
+    const gCost = 1 + risk;
+    const hCost = heuristic(pos, goal);
+    const fCost = gCost + hCost;
 
     return { pos, key, gCost, hCost, fCost, risk, status, visited: kb.visited.has(key) };
   });
