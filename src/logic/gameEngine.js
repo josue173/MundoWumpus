@@ -137,7 +137,8 @@ export function applyAction(state, action) {
         log.decision = 'Recogí el tesoro. Ahora debo regresar a la entrada.';
       } else {
         log.conclusion = perceptionsConclusion(log.perceptions);
-        log.decision = 'Moverse hacia la casilla segura evaluada por la heurística.';
+        const dirNames = { N: 'Norte', S: 'Sur', E: 'Este', W: 'Oeste' };
+        log.decision = `Moverse hacia el ${dirNames[action.dir] || action.dir}.`;
       }
 
       // Win condition

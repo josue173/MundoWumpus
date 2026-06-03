@@ -73,7 +73,8 @@ export function heuristic(a, b) {
 }
 
 // Returns heuristic evaluation table for all neighbors of current position
-export function computeHeuristicTable(gameState, kb) {
+// actualNextPos: la casilla a la que el agente realmente se moverá (para marcar el "mejor" correcto)
+export function computeHeuristicTable(gameState, kb, actualNextPos = null) {
   const { agentPos, hasTreasure, entryPos, wumpusAlive, board, size } = gameState;
   const goal = hasTreasure ? entryPos : gameState.treasurePos;
 
@@ -101,7 +102,16 @@ export function computeHeuristicTable(gameState, kb) {
     return { pos, key, gCost, hCost, fCost, risk, status, visited: kb.visited.has(key) };
   });
 
-  const best = neighbors.reduce((a, b) => (a.fCost <= b.fCost ? a : b), neighbors[0] || null);
+  // Si se conoce la casilla real elegida por A*, marcarla como mejor
+  // Si no, usar la de menor f como aproximación
+  let best;
+  if (actualNextPos) {
+    const actualKey = actualNextPos.join(',');
+    best = neighbors.find(n => n.key === actualKey)
+        || neighbors.reduce((a, b) => (a.fCost <= b.fCost ? a : b), neighbors[0]);
+  } else {
+    best = neighbors.reduce((a, b) => (a.fCost <= b.fCost ? a : b), neighbors[0]);
+  }
 
   return { neighbors, goal, agentPos, best };
 }
@@ -160,6 +170,7 @@ function reconstructPath(cameFrom, current, key) {
 }
 
 // Decide next action for the agent
+// Returns { type, dir, path } — path incluye la ruta completa planificada por A*
 export function decideAction(gameState, kb) {
   const { agentPos, hasTreasure, entryPos, wumpusAlive, wumpusPos, arrows, board, size } = gameState;
 
@@ -170,27 +181,27 @@ export function decideAction(gameState, kb) {
   const goal = hasTreasure ? entryPos : findBestGoal(gameState, kb);
 
   if (!goal) {
-    // No goal found, explore unknown safe adj
-    return { type: 'MOVE', dir: exploreFallback(agentPos, kb, board, size, wumpusAlive) };
+    const dir = exploreFallback(agentPos, kb, board, size, wumpusAlive);
+    return { type: 'MOVE', dir, path: null };
   }
 
   // Consider shooting if wumpus is in line of sight and we have arrows
   if (!hasTreasure && wumpusAlive && arrows > 0) {
     const shootDir = canShoot(agentPos, wumpusPos, size);
     if (shootDir && kb.possibleWumpus.size <= 2) {
-      return { type: 'SHOOT', dir: shootDir };
+      return { type: 'SHOOT', dir: shootDir, path: null };
     }
   }
 
   const path = astar(agentPos, goal, kb, board, wumpusAlive);
   if (!path || path.length < 2) {
-    // Try fallback: move to any safe unvisited
-    return { type: 'MOVE', dir: exploreFallback(agentPos, kb, board, size, wumpusAlive) };
+    const dir = exploreFallback(agentPos, kb, board, size, wumpusAlive);
+    return { type: 'MOVE', dir, path: null };
   }
 
   const next = path[1];
   const dir = getDir(agentPos, next);
-  return { type: 'MOVE', dir };
+  return { type: 'MOVE', dir, path }; // path[0]=actual, path[1..n]=ruta planificada
 }
 
 function findBestGoal(gameState, kb) {

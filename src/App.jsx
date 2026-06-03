@@ -50,9 +50,14 @@ export default function App() {
       return;
     }
 
-    // Capturar snapshot heurístico ANTES de mover
-    const snapshot = computeHeuristicTable(state, knowledge);
     const action = decideAction(state, knowledge);
+
+    // Capturar snapshot con la casilla real elegida por A*
+    const offsets = { N: [-1,0], S: [1,0], E: [0,1], W: [0,-1] };
+    const actualNextPos = action.type === 'MOVE'
+      ? [state.agentPos[0] + offsets[action.dir][0], state.agentPos[1] + offsets[action.dir][1]]
+      : null;
+    const snapshot = computeHeuristicTable(state, knowledge, actualNextPos);
     const newState = applyAction(state, action);
     setGameState(newState);
     setKb({ ...knowledge });
