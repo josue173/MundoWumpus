@@ -619,6 +619,25 @@ body {
   font-style: italic;
 }
 
+/* ===== SHOOT STEP ===== */
+.hp-step-shoot {
+  border-color: var(--warn) !important;
+}
+.hp-shoot-body {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.82rem;
+  color: var(--text);
+  padding: 4px 0;
+}
+.hp-shoot-icon { font-size: 1.1rem; }
+.hp-shoot-note {
+  font-size: 0.72rem;
+  color: var(--text2);
+  font-style: italic;
+}
+
 /* ===== SCROLLBAR ===== */
 ::-webkit-scrollbar { width: 6px; height: 6px; }
 ::-webkit-scrollbar-track { background: var(--bg2); }

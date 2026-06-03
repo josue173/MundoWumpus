@@ -29,6 +29,27 @@ const RISK_LABELS = {
   1000: 'Confirmada peligrosa (+1000)',
 };
 
+function ShootStep({ snapshot, stepNumber, isLatest }) {
+  return (
+    <div className={`hp-step-block hp-step-shoot ${isLatest ? 'hp-step-latest' : ''}`}>
+      <div className="hp-step-header">
+        <span className="hp-step-num">Paso {stepNumber}</span>
+        <span className="hp-step-info">
+          Agente: <strong>({snapshot.agentPos[0]},{snapshot.agentPos[1]})</strong>
+        </span>
+        {isLatest && <span className="hp-step-latest-tag">● Actual</span>}
+      </div>
+      <div className="hp-shoot-body">
+        <span className="hp-shoot-icon">🏹</span>
+        <span>Disparo de flecha hacia el <strong>{snapshot.dirName}</strong></span>
+      </div>
+      <div className="hp-shoot-note">
+        No se evalúa A* — el agente no se desplaza en este paso.
+      </div>
+    </div>
+  );
+}
+
 function StepTable({ snapshot, stepNumber, isLatest }) {
   const { neighbors, goal, agentPos, best } = snapshot;
 
@@ -128,12 +149,9 @@ export default function HeuristicPanel({ gameState, kb, history = [] }) {
       )}
 
       {history.map((snapshot, i) => (
-        <StepTable
-          key={i}
-          snapshot={snapshot}
-          stepNumber={i + 1}
-          isLatest={i === history.length - 1}
-        />
+        snapshot.actionType === 'SHOOT'
+          ? <ShootStep key={i} snapshot={snapshot} stepNumber={i + 1} isLatest={i === history.length - 1} />
+          : <StepTable key={i} snapshot={snapshot} stepNumber={i + 1} isLatest={i === history.length - 1} />
       ))}
 
       <div ref={bottomRef} />

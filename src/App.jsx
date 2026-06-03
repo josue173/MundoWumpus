@@ -51,17 +51,28 @@ export default function App() {
     }
 
     const action = decideAction(state, knowledge);
-
-    // Capturar snapshot con la casilla real elegida por A*
-    const offsets = { N: [-1,0], S: [1,0], E: [0,1], W: [0,-1] };
-    const actualNextPos = action.type === 'MOVE'
-      ? [state.agentPos[0] + offsets[action.dir][0], state.agentPos[1] + offsets[action.dir][1]]
-      : null;
-    const snapshot = computeHeuristicTable(state, knowledge, actualNextPos);
     const newState = applyAction(state, action);
     setGameState(newState);
     setKb({ ...knowledge });
-    setHeuristicHistory(prev => [...prev, { ...snapshot, stepIndex: prev.length }]);
+
+    if (action.type === 'MOVE') {
+      const offsets = { N: [-1,0], S: [1,0], E: [0,1], W: [0,-1] };
+      const actualNextPos = [
+        state.agentPos[0] + offsets[action.dir][0],
+        state.agentPos[1] + offsets[action.dir][1],
+      ];
+      const snapshot = computeHeuristicTable(state, knowledge, actualNextPos);
+      setHeuristicHistory(prev => [...prev, { ...snapshot, stepIndex: prev.length, actionType: 'MOVE' }]);
+    } else if (action.type === 'SHOOT') {
+      const dirNames = { N: 'Norte', S: 'Sur', E: 'Este', W: 'Oeste' };
+      setHeuristicHistory(prev => [...prev, {
+        actionType: 'SHOOT',
+        dir: action.dir,
+        dirName: dirNames[action.dir] || action.dir,
+        agentPos: state.agentPos,
+        stepIndex: prev.length,
+      }]);
+    }
 
     if (newState.status !== 'playing') {
       setRunning(false);
