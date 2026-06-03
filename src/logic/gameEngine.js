@@ -160,7 +160,7 @@ export function applyAction(state, action) {
         log.conclusion = '¡La flecha mató al Wumpus! Escuché un grito.';
         log.decision = 'El camino hacia el tesoro está más seguro ahora.';
       } else {
-        log.conclusion = 'La flecha no alcanzó al Wumpus.';
+        log.conclusion = 'La flecha falló. El Wumpus sigue vivo.';
         log.decision = 'Debo continuar con cautela.';
       }
     }
@@ -195,13 +195,16 @@ function movePos([r, c], dir) {
   return [r, c];
 }
 
+// Arrow hits with 65% probability when aligned with the Wumpus
+const ARROW_HIT_CHANCE = 0.5;
+
 function arrowHitsWumpus(state, dir) {
   let pos = [...state.agentPos];
   for (let i = 0; i < state.size; i++) {
     pos = movePos(pos, dir);
     if (!inBounds(pos, state.size)) break;
     if (state.wumpusAlive && pos[0] === state.wumpusPos[0] && pos[1] === state.wumpusPos[1]) {
-      return true;
+      return Math.random() < ARROW_HIT_CHANCE;
     }
   }
   return false;
