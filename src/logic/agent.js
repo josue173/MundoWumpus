@@ -214,13 +214,36 @@ export function decideAction(gameState, kb) {
 
 function findBestGoal(gameState, kb) {
   const { treasurePos, agentPos, size } = gameState;
+  const treasureKey = treasurePos.join(',');
 
-  // If treasure is known safe or we've identified it
-  if (kb.safe.has(treasurePos.join(',')) || !kb.possibleWumpus.has(treasurePos.join(',')) && !kb.possiblePit.has(treasurePos.join(','))) {
-    return treasurePos;
+  // Prioridad 1: celda segura no visitada adyacente (distancia 1)
+  // El agente siempre explora primero antes de arriesgarse
+  let adjacentSafe = null;
+  let nearestSafe = null;
+  let nearestDist = Infinity;
+
+  for (let r = 0; r < size; r++) {
+    for (let c = 0; c < size; c++) {
+      const key = [r, c].join(',');
+      if (!kb.visited.has(key) && kb.safe.has(key)) {
+        const d = heuristic(agentPos, [r, c]);
+        if (d === 1) adjacentSafe = [r, c]; // celda segura adyacente → máxima prioridad
+        if (d < nearestDist) { nearestDist = d; nearestSafe = [r, c]; }
+      }
+    }
   }
 
-  // Find nearest unvisited safe cell to explore
+  // Si hay una celda segura adyacente sin visitar, ir ahí primero
+  if (adjacentSafe) return adjacentSafe;
+
+  // Prioridad 2: si el tesoro está confirmado seguro, ir por él
+  if (kb.safe.has(treasureKey)) return treasurePos;
+
+  // Prioridad 3: celda segura no visitada más cercana (exploración)
+  if (nearestSafe) return nearestSafe;
+
+  // Último recurso: ir al tesoro aunque sea riesgoso
+  // Find nearest unvisited safe cell to explore (legacy fallback)
   let best = null;
   let bestDist = Infinity;
   for (let r = 0; r < size; r++) {
