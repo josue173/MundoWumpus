@@ -5,7 +5,7 @@ import ReasoningLog from './components/ReasoningLog.jsx';
 import HeuristicPanel from './components/HeuristicPanel.jsx';
 import StatusBar from './components/StatusBar.jsx';
 import { initGameState, applyAction } from './logic/gameEngine.js';
-import { createKB, decideAction, computeHeuristicTable } from './logic/agent.js';
+import { createKB, decideAction } from './logic/agent.js';
 import './App.css';
 
 export default function App() {
@@ -55,14 +55,8 @@ export default function App() {
     setGameState(newState);
     setKb({ ...knowledge });
 
-    if (action.type === 'MOVE') {
-      const offsets = { N: [-1,0], S: [1,0], E: [0,1], W: [0,-1] };
-      const actualNextPos = [
-        state.agentPos[0] + offsets[action.dir][0],
-        state.agentPos[1] + offsets[action.dir][1],
-      ];
-      const snapshot = computeHeuristicTable(state, knowledge, actualNextPos);
-      setHeuristicHistory(prev => [...prev, { ...snapshot, stepIndex: prev.length, actionType: 'MOVE' }]);
+    if (action.type === 'MOVE' && action.heuristicSnapshot) {
+      setHeuristicHistory(prev => [...prev, { ...action.heuristicSnapshot, stepIndex: prev.length, actionType: 'MOVE' }]);
     } else if (action.type === 'SHOOT') {
       const dirNames = { N: 'Norte', S: 'Sur', E: 'Este', W: 'Oeste' };
       setHeuristicHistory(prev => [...prev, {

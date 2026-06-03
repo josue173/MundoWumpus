@@ -74,9 +74,10 @@ export function heuristic(a, b) {
 
 // Returns heuristic evaluation table for all neighbors of current position
 // actualNextPos: la casilla a la que el agente realmente se moverá (para marcar el "mejor" correcto)
-export function computeHeuristicTable(gameState, kb, actualNextPos = null) {
+// explicitGoal: objetivo real usado por A* en esta decisión (evita desincronización de heurística)
+export function computeHeuristicTable(gameState, kb, actualNextPos = null, explicitGoal = null) {
   const { agentPos, hasTreasure, entryPos, wumpusAlive, board, size } = gameState;
-  const goal = hasTreasure ? entryPos : gameState.treasurePos;
+  const goal = explicitGoal || (hasTreasure ? entryPos : gameState.treasurePos);
 
   const neighbors = adjacents(agentPos, size).map(pos => {
     const cell = board[pos[0]][pos[1]];
@@ -178,7 +179,7 @@ function reconstructPath(cameFrom, current, key) {
 }
 
 // Decide next action for the agent
-// Returns { type, dir, path } — path incluye la ruta completa planificada por A*
+// Returns { type, dir, path, heuristicSnapshot } — snapshot calculado con el mismo objetivo real de A*
 export function decideAction(gameState, kb) {
   const { agentPos, hasTreasure, entryPos, wumpusAlive, wumpusPos, arrows, board, size } = gameState;
 
@@ -188,28 +189,37 @@ export function decideAction(gameState, kb) {
   // If has treasure, go home
   const goal = hasTreasure ? entryPos : findBestGoal(gameState, kb);
 
-  if (!goal) {
-    const dir = exploreFallback(agentPos, kb, board, size, wumpusAlive);
-    return { type: 'MOVE', dir, path: null };
-  }
-
   // Always shoot when the wumpus is in line of sight, but the arrow may miss (50% hit chance).
   if (!hasTreasure && wumpusAlive && arrows > 0) {
     const shootDir = canShoot(agentPos, wumpusPos, size);
     if (shootDir && kb.possibleWumpus.size <= 2) {
-      return { type: 'SHOOT', dir: shootDir, path: null };
+      return { type: 'SHOOT', dir: shootDir, path: null, heuristicSnapshot: null };
     }
   }
 
-  const path = astar(agentPos, goal, kb, board, wumpusAlive, hasTreasure);
-  if (!path || path.length < 2) {
-    const dir = exploreFallback(agentPos, kb, board, size, wumpusAlive);
-    return { type: 'MOVE', dir, path: null };
+  const offsets = { N: [-1, 0], S: [1, 0], E: [0, 1], W: [0, -1] };
+
+  // Determine next position via A* or fallback
+  let dir, path, nextPos;
+
+  if (goal) {
+    path = astar(agentPos, goal, kb, board, wumpusAlive, hasTreasure);
   }
 
-  const next = path[1];
-  const dir = getDir(agentPos, next);
-  return { type: 'MOVE', dir, path }; // path[0]=actual, path[1..n]=ruta planificada
+  if (path && path.length >= 2) {
+    nextPos = path[1];
+    dir = getDir(agentPos, nextPos);
+  } else {
+    dir = exploreFallback(agentPos, kb, board, size, wumpusAlive);
+    path = null;
+    nextPos = [agentPos[0] + offsets[dir][0], agentPos[1] + offsets[dir][1]];
+  }
+
+  // Snapshot con el mismo objetivo real usado por A* — única fuente de verdad
+  const effectiveGoal = goal || gameState.treasurePos;
+  const heuristicSnapshot = computeHeuristicTable(gameState, kb, nextPos, effectiveGoal);
+
+  return { type: 'MOVE', dir, path, heuristicSnapshot };
 }
 
 function findBestGoal(gameState, kb) {
