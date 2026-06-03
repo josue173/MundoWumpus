@@ -116,8 +116,9 @@ export function computeHeuristicTable(gameState, kb, actualNextPos = null) {
   return { neighbors, goal, agentPos, best };
 }
 
-// A* search from start to goal through known-safe cells
-export function astar(start, goal, kb, board, wumpusAlive) {
+// A* search from start to goal
+// returningHome: si es true, penaliza fuertemente casillas no visitadas para preferir la ruta conocida
+export function astar(start, goal, kb, board, wumpusAlive, returningHome = false) {
   const key = p => p.join(',');
   const g = { [key(start)]: 0 };
   const f = { [key(start)]: heuristic(start, goal) };
@@ -126,8 +127,12 @@ export function astar(start, goal, kb, board, wumpusAlive) {
   const closed = new Set();
 
   while (open.length) {
-    // Pick lowest f
-    open.sort((a, b) => (f[key(a)] || Infinity) - (f[key(b)] || Infinity));
+    // Pick lowest f, desempate por h (menor h = más cerca del objetivo)
+    open.sort((a, b) => {
+      const df = (f[key(a)] || Infinity) - (f[key(b)] || Infinity);
+      if (df !== 0) return df;
+      return heuristic(a, goal) - heuristic(b, goal);
+    });
     const current = open.shift();
     const ck = key(current);
 
@@ -145,7 +150,10 @@ export function astar(start, goal, kb, board, wumpusAlive) {
       if (cell.type === CELL.PIT) continue;
       if (wumpusAlive && cell.type === CELL.WUMPUS) continue;
 
-      const risk = riskScore(kb, neighbor);
+      let risk = riskScore(kb, neighbor);
+      // Al regresar con tesoro, penalizar fuertemente casillas no visitadas
+      if (returningHome && !kb.visited.has(nk) && risk < 50) risk = 200;
+
       const tentativeG = (g[ck] || 0) + 1 + risk;
 
       if (tentativeG < (g[nk] || Infinity)) {
@@ -193,7 +201,7 @@ export function decideAction(gameState, kb) {
     }
   }
 
-  const path = astar(agentPos, goal, kb, board, wumpusAlive);
+  const path = astar(agentPos, goal, kb, board, wumpusAlive, hasTreasure);
   if (!path || path.length < 2) {
     const dir = exploreFallback(agentPos, kb, board, size, wumpusAlive);
     return { type: 'MOVE', dir, path: null };
